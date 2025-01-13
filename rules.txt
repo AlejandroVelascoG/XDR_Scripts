@@ -1,0 +1,5 @@
+Potential Antimalware Scan Interface Bypass via Powershell
+Powershell Script with encryption/decryption capabilities
+Volume Shadow Copy Delition via powershell
+Microsoft Exchange Worker Spawning suspicious Processes
+Attempt to install Kali Linux via WSL

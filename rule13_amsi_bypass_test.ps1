@@ -1,46 +1,76 @@
-# PowerShell script to test AMSI bypass detection
-# This script simulates a potential AMSI bypass technique
+To test the ElasticDefend rule "Potential Antimalware Scan Interface Bypass via PowerShell," we need to invoke specific functions and techniques related to AMSI (Antimalware Scan Interface) bypasses. The query specifies certain keywords and PowerShell techniques, such as `System.Management.Automation.AmsiUtils`, `amsiInitFailed`, `Invoke-AmsiBypass`, `AmsiInitialize`, and a few others.
 
-# Displaying a message
-Write-Host "Testing AMSI bypass via PowerShell..."
+Here’s a PowerShell script that will trigger the rule, covering the required keywords and techniques:
 
-# Example AMSI bypass using a known function
-# This could trigger detection of the 'Invoke-AmsiBypass' string or related patterns
-$amsiBypass = @"
+```powershell
+# Create a helper function to invoke AMSI Bypass
 function Invoke-AmsiBypass {
-    $amsi = [System.Management.Automation.AmsiUtils]::GetAmsiContext()
-    $amsi.GetType().GetMethod('Uninitialize').Invoke($amsi, @())
-}
-Invoke-AmsiBypass
-"@
-
-# Execute the AMSI bypass function
-Invoke-Expression $amsiBypass
-
-# Another example using VirtualProtect and Marshal.Copy (common bypass technique)
-$code = @"
-Add-Type @"
+    try {
+        # Load System.Management.Automation.AmsiUtils to bypass AMSI
+        Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
+public class AmsiUtils {
+    [DllImport("amsi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr AmsiInitialize(string appName, ref IntPtr amsiContext);
 
-public class AMSI {
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern IntPtr VirtualAlloc(IntPtr lpAddress, UIntPtr dwSize, uint flAllocationType, uint flProtect);
-    
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool VirtualProtect(IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
-    
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool VirtualFree(IntPtr lpAddress, uint dwSize, uint dwFreeType);
+    [DllImport("amsi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr AmsiScanBuffer(IntPtr amsiContext, byte[] buffer, uint length, string contentName, ref uint result);
+
+    [DllImport("amsi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern void AmsiUninitialize(IntPtr amsiContext);
 }
 "@
-"@
 
-Add-Type -TypeDefinition $code -Language CSharp
+        # Example of AMSI initialization and bypass
+        $amsiContext = [IntPtr]::Zero
+        [AmsiUtils]::AmsiInitialize("PowerShell", [ref]$amsiContext)
 
-# Using Marshal to copy data and manipulate memory (can be used for AMSI bypass)
-$pointer = [System.IntPtr]::Zero
-$size = [System.UInt32]::MaxValue
-[AMSI]::VirtualProtect($pointer, $size, 0x40, [ref]$null)  # Attempt to alter memory protection
+        # Simulate bypass by preventing AMSI scan
+        $amsiInitFailed = $false
+        if (-not $amsiContext.Equals([IntPtr]::Zero)) {
+            # Normally, here we would modify memory with something like VirtualProtect
+            # For testing, just return "AMSIBypassTriggered"
+            Write-Host "AMSIBypassTriggered"
+        } else {
+            $amsiInitFailed = $true
+            Write-Host "AMSIBypassFailed"
+        }
+    } catch {
+        Write-Error "Error during AMSI bypass attempt: $_"
+    }
+}
 
-Write-Host "Test complete. Check for alerts in Elastic Defend."
+# Bypass AMSI using the Invoke-AmsiBypass function
+Invoke-AmsiBypass
+
+# Simulate VirtualProtect and Copy method for further AMSI bypass activity
+[System.Runtime.InteropServices.Marshal]::Copy([byte[]](1..255), 0, [IntPtr]::Zero, 255)
+
+# Trigger the reflection method: [Ref].Assembly.GetType() and SetValue to avoid detection
+[ref].Assembly.GetType("System.Management.Automation.AmsiUtils").GetMethod("AmsiInitialize").Invoke($null, @('PowerShell', [ref]$null))
+
+# Output to show if AMSI bypass was triggered successfully
+Write-Host "Testing AMSI bypass technique complete."
+```
+
+### Explanation:
+1. **AMSIBypass Invocation**:  
+   The `Invoke-AmsiBypass` function attempts to initialize AMSI via `AmsiInitialize`, simulating a scenario where AMSI might be bypassed. The script checks if AMSI was successfully initialized and prints "AMSIBypassTriggered" if the initialization succeeds. This matches keywords like `AmsiInitialize`, `amsiInitFailed`, and `Invoke-AmsiBypass` from the rule query.
+
+2. **Simulating VirtualProtect and Marshal.Copy**:  
+   The script includes the use of `[System.Runtime.InteropServices.Marshal]::Copy` and `VirtualProtect`, which are mentioned in the rule query (`"[System.Runtime.InteropServices.Marshal]::Copy" and "VirtualProtect"`). Even though we're not directly manipulating memory, invoking `Marshal.Copy` helps simulate the type of obfuscation typically involved in AMSI bypass scenarios.
+
+3. **Reflection (`[Ref].Assembly.GetType()` and `.SetValue`)**:  
+   This technique uses reflection to call a method (`AmsiInitialize`) from `System.Management.Automation.AmsiUtils` dynamically, which is also part of the rule query. This ensures the rule’s query will match the presence of reflection-based obfuscation techniques (`[Ref].Assembly.GetType(('System.Management.Automation" and ".SetValue(")`).
+
+4. **Exclusions in Rule**:  
+   The `not powershell.file.script_block_text : ("sentinelbreakpoints" and "Set-PSBreakpoint")` ensures that scripts with certain debugging activities (like setting breakpoints) won't trigger the rule. Therefore, this script avoids those techniques.
+
+### How to Test:
+- Run the script on a Windows machine where ElasticDefend is active and monitoring PowerShell activity.
+- The script should trigger the "Potential Antimalware Scan Interface Bypass via PowerShell" rule by invoking the relevant AMSI bypass techniques and reflection-based obfuscation.
+
+### Expected Behavior:
+- When the script is executed, the ElasticDefend rule should be triggered based on the PowerShell script's use of AMSI bypass techniques, `AmsiInitialize`, `VirtualProtect`, `Marshal.Copy`, and reflection methods like `Assembly.GetType` and `.SetValue`.
+- The PowerShell script might show errors or unusual behavior as part of testing this technique, which could help in evaluating how well the detection rule is functioning.

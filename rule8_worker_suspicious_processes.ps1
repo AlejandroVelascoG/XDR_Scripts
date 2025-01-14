@@ -1,12 +1,20 @@
-# PowerShell script to simulate Microsoft Exchange Worker spawning suspicious processes
+# Simulating the environment where w3wp.exe is the parent process
+# This script will spawn a PowerShell process as a child of w3wp.exe
 
-# First, simulate the environment by starting the IIS worker process (w3wp.exe)
-Start-Process "w3wp.exe" -ArgumentList "MSExchange*AppPool"
+# Simulate the parent process 'w3wp.exe' with the 'MSExchange*AppPool' argument
+$w3wpProcess = Start-Process "w3wp.exe" -ArgumentList "MSExchangeAppPool" -PassThru
 
-# Now, simulate spawning a suspicious process from the parent process (w3wp.exe)
-# In this case, we'll launch powershell.exe, which is the suspicious process to test
+# Ensure the script simulates the spawning of a child process under 'w3wp.exe'
+# This child process should be one of the listed suspicious processes (powershell.exe, cmd.exe, etc.)
 
-Start-Process "powershell.exe" -ArgumentList "-Command", "Write-Host 'This is a test of a suspicious process spawn.'"
+# Start PowerShell (pwsh.exe) as the child process of w3wp.exe
+$childProcess = Start-Process "pwsh.exe" -ArgumentList "-Command 'Write-Host ""Testing Exchange Worker Spawning Suspicious Processes""" -PassThru
 
-# Optionally, log to confirm the child process has been launched
-Write-Host "Suspicious process (powershell.exe) spawned under w3wp.exe."
+# Sleep for a few seconds to ensure the processes have time to initialize
+Start-Sleep -Seconds 3
+
+# Output to indicate that the child process has been spawned by w3wp.exe
+Write-Host "PowerShell child process spawned under w3wp.exe (MSExchangeAppPool)."
+
+# End the parent process simulation (w3wp.exe)
+$w3wpProcess.Kill()

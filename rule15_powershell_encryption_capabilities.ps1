@@ -18,10 +18,10 @@ function Test-AESCryptography {
     $ivBytes = [System.Text.Encoding]::UTF8.GetBytes($iv)
 
     # AES encryption setup
-    $aes = [System.Security.Cryptography.AESManaged]::new()
+    $aes = [System.Security.Cryptography.Aes]::Create()
     $aes.Key = $keyBytes
     $aes.IV = $ivBytes
-    $aes.CipherMode = [System.Security.Cryptography.CipherMode]::CBC
+    $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
     $aes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
 
     # Create Encryptor and Decryptor
@@ -54,4 +54,5 @@ $result = Test-AESCryptography -plainText $plainText -key $key -iv $iv
 # Output the results
 Write-Host "Encrypted Text: $($result.EncryptedText)"
 Write-Host "Decrypted Text: $($result.DecryptedText)"
+
 

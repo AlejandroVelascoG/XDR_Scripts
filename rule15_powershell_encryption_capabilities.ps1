@@ -1,58 +1,32 @@
-# Importing necessary cryptographic namespaces
-Add-Type -TypeDefinition @"
-using System;
-using System.Security.Cryptography;
-using System.Text;
-"@
+# This script contains cryptographic operations that should trigger the ElasticDefend rule
+# Ensure you're running this as a regular user (not SYSTEM)
 
-# Function to encrypt and decrypt a string using AES encryption
-function Test-AESCryptography {
-    param (
-        [string]$plainText,
-        [string]$key,
-        [string]$iv
-    )
+# Create AES cryptographic object
+$algorithm = New-Object System.Security.Cryptography.AESManaged
 
-    # Convert key and IV to byte arrays
-    $keyBytes = [System.Text.Encoding]::UTF8.GetBytes($key)
-    $ivBytes = [System.Text.Encoding]::UTF8.GetBytes($iv)
+# Configure cipher parameters
+$algorithm.Mode = [System.Security.Cryptography.CipherMode]::CBC
+$algorithm.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
 
-    # AES encryption setup
-    $aes = [System.Security.Cryptography.Aes]::Create()
-    $aes.Key = $keyBytes
-    $aes.IV = $ivBytes
-    $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
-    $aes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+# Generate encryption components
+$key = [System.Convert]::FromBase64String("k6PrY5+8Tm9H4W1dDgpxsxqZJol1mC0b3EeKjB2QnVw=")
+$iv = [System.Convert]::FromBase64String("UXZtRWFoTDlHY1FKdkhjYg==")
 
-    # Create Encryptor and Decryptor
-    $encryptor = $aes.CreateEncryptor()
-    $decryptor = $aes.CreateDecryptor()
+# Create encryptor (matches rule pattern)
+$encryptor = $algorithm.CreateEncryptor($key, $iv)
 
-    # Encrypt the plain text
-    $plainBytes = [System.Text.Encoding]::UTF8.GetBytes($plainText)
-    $cipherText = $encryptor.TransformFinalBlock($plainBytes, 0, $plainBytes.Length)
+# Simple encryption demonstration
+$original = "Test payload for encryption"
+$memoryStream = New-Object System.IO.MemoryStream
+$cryptoStream = New-Object System.Security.Cryptography.CryptoStream(
+    $memoryStream,
+    $encryptor,
+    [System.Security.Cryptography.CryptoStreamMode]::Write
+)
+$streamWriter = New-Object System.IO.StreamWriter($cryptoStream)
+$streamWriter.Write($original)
+$streamWriter.Close()
 
-    # Decrypt the cipher text
-    $decryptedBytes = $decryptor.TransformFinalBlock($cipherText, 0, $cipherText.Length)
-    $decryptedText = [System.Text.Encoding]::UTF8.GetString($decryptedBytes)
-
-    # Return the encrypted and decrypted result
-    return @{
-        EncryptedText = [Convert]::ToBase64String($cipherText)
-        DecryptedText = $decryptedText
-    }
-}
-
-# Test data
-$plainText = "SensitiveData"
-$key = "1234567890123456"  # 16-byte key for AES
-$iv = "6543210987654321"   # 16-byte IV
-
-# Encrypt and decrypt the data
-$result = Test-AESCryptography -plainText $plainText -key $key -iv $iv
-
-# Output the results
-Write-Host "Encrypted Text: $($result.EncryptedText)"
-Write-Host "Decrypted Text: $($result.DecryptedText)"
+Write-Host "Test encryption completed successfully"
 
 

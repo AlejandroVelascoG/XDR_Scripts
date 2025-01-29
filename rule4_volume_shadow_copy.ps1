@@ -1,63 +1,57 @@
-# PowerShell script to simulate Volume Shadow Copy Deletion and trigger ElasticDefend rule
+Write-Warning "This script tests Volume Shadow Copy deletion detection. Run in a TEST environment."
+Write-Host "`n=== Testing ElasticDefend Rule: Volume Shadow Copy Deletion via PowerShell ===`n"
 
-# Define the function to delete Volume Shadow Copies
-function Remove-ShadowCopy {
-    try {
-        # Get all shadow copies (Win32_ShadowCopy WMI class)
-        $shadowCopies = Get-WmiObject -Class Win32_ShadowCopy
+# Confirmation prompt for safety
+$confirmation = Read-Host "Do you want to proceed? (Y/N)"
+if ($confirmation -ne "Y") { exit }
 
-        # Check if there are any shadow copies
-        if ($shadowCopies) {
-            # Loop through each shadow copy and attempt to delete
-            foreach ($shadowCopy in $shadowCopies) {
-                Write-Host "Deleting shadow copy: $($shadowCopy.ID)"
-                # Delete the shadow copy (using Remove-WmiObject to trigger the rule)
-                $shadowCopy.Delete()
-            }
-        } else {
-            Write-Host "No shadow copies found."
-        }
-    } catch {
-        Write-Host "Error during shadow copy deletion: $_"
-    }
-}
-
-# Call the function to remove shadow copies
-Remove-ShadowCopy
-
-# Alternative method to remove shadow copies using Get-CimInstance and Remove-CimInstance
-function Remove-ShadowCopyCIM {
-    try {
-        # Get all shadow copies using Get-CimInstance (alternative to Get-WmiObject)
-        $shadowCopiesCIM = Get-CimInstance -ClassName Win32_ShadowCopy
-
-        # Check if there are any shadow copies
-        if ($shadowCopiesCIM) {
-            # Loop through each shadow copy and attempt to delete
-            foreach ($shadowCopy in $shadowCopiesCIM) {
-                Write-Host "Deleting shadow copy using CIM: $($shadowCopy.ID)"
-                # Delete the shadow copy using Remove-CimInstance (alternative to Remove-WmiObject)
-                Remove-CimInstance -InputObject $shadowCopy
-            }
-        } else {
-            Write-Host "No shadow copies found using CIM."
-        }
-    } catch {
-        Write-Host "Error during CIM-based shadow copy deletion: $_"
-    }
-}
-
-# Call the function to remove shadow copies using CIM
-Remove-ShadowCopyCIM
-
-# Simulate error with invalid syntax (to simulate realistic behavior)
+# Test 1: WMI Object Deletion using Delete() method
 try {
-    # This will produce a syntax error: misspelled function name
-    gwmi Win32_ShadowCopy | Remove-WmiObject
+    Write-Host "`n[Test 1] Attempting WMI Delete() method..."
+    Get-WmiObject Win32_ShadowCopy | ForEach-Object { $_.Delete() }
 } catch {
-    Write-Host "Syntax error caught while trying to delete shadow copy: $_"
+    Write-Host "[Test 1 Error] $_"
 }
 
-# Call the functions to ensure we trigger the rule
-Write-Host "Testing Volume Shadow Copy Deletion complete."
+# Test 2: Using gwmi alias with Delete()
+try {
+    Write-Host "`n[Test 2] Attempting gwmi alias..."
+    gwmi Win32_ShadowCopy | % { $_.Delete() }
+} catch {
+    Write-Host "[Test 2 Error] $_"
+}
+
+# Test 3: Remove-WmiObject command
+try {
+    Write-Host "`n[Test 3] Attempting Remove-WmiObject..."
+    Get-WmiObject Win32_ShadowCopy | Remove-WmiObject
+} catch {
+    Write-Host "[Test 3 Error] $_"
+}
+
+# Test 4: Using rwmi alias
+try {
+    Write-Host "`n[Test 4] Attempting rwmi alias..."
+    gwmi Win32_ShadowCopy | rwmi
+} catch {
+    Write-Host "[Test 4 Error] $_"
+}
+
+# Test 5: CIM Instance deletion
+try {
+    Write-Host "`n[Test 5] Attempting CIM methods..."
+    Get-CimInstance -ClassName Win32_ShadowCopy | Remove-CimInstance
+} catch {
+    Write-Host "[Test 5 Error] $_"
+}
+
+# Test 6: Using gcim/rcim aliases
+try {
+    Write-Host "`n[Test 6] Attempting CIM aliases..."
+    gcim Win32_ShadowCopy | rcim
+} catch {
+    Write-Host "[Test 6 Error] $_"
+}
+
+Write-Host "`nTest sequence completed. Check your ElasticDefend alerts for detection."
 
